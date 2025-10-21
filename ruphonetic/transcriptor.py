@@ -1,7 +1,8 @@
 import re
-from typing import Match, Callable
+from typing import Match
 
-from .accentuation import stress
+# Direct import to avoid relative import issue
+from ruphonetic.accentuation import stress
 
 # Словарь замен для йотированных гласных
 jot_dict: dict[str, str] = {
