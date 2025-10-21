@@ -1,0 +1,26 @@
+Change Log
+===============
+
+0.1.5 (13.04.2023)
+--------------------
+-Add package data
+
+0.1.4 (25.06.2022)
+--------------------
+-Add pie, bar plot support
+
+0.1.3 (25.06.2022)
+--------------------
+-Spacy model installation workaround
+
+0.1.2 (25.06.2022)
+--------------------
+-Fix bad accentuation import
+
+0.1.1 (25.06.2022)
+--------------------
+-Remove pprint
+
+0.1 (25.06.2022)
+--------------------
+-First Release
