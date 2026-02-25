@@ -20,13 +20,6 @@ def load():
         wordforms = pickle.loads(f.read())
     return wordforms
 
-def introduce_special_cases_from_dictionary(dictionary):
-    for word in dictionary:
-        if (" " in word) or ("-" in word):
-            if len(dictionary[word]) == 1:
-                ru_nlp.tokenizer.add_special_case(word, [{"ORTH": dictionary[word][0]["accentuated"]}])
-                ru_nlp.tokenizer.add_special_case(word.capitalize(), [{"ORTH": dictionary[word][0]["accentuated"].capitalize()}])
-
 # Гласные для проверки односложности
 RUSSIAN_VOWELS = "аеёиоуыэюя"
 
@@ -145,6 +138,5 @@ def accentuate(text, text_is_preprocessed=False):
     if not text_is_preprocessed:
         text = preprocess_text(text)
     wordforms = load()
-    # introduce_special_cases_from_dictionary(wordforms)
     res = process(text, wordforms)
     return res
