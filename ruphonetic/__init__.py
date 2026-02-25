@@ -5,7 +5,7 @@ from pathlib import Path
 from ruphonetic import utils
 from collections import Counter
 from typing import Dict, Any
-from ruphonetic.transcriptor import transcribe
+from ruphonetic.transcriptor import transcribe as _transcribe
 
 def transcribe(text: str, simplify: bool = False, verbose: bool = False) -> str:
     """
@@ -17,7 +17,7 @@ def transcribe(text: str, simplify: bool = False, verbose: bool = False) -> str:
     if len(text) > 1000000:
         print("WARNING! text is too long. Transcribing only first 1000000 symbols")
         text = text[:1000000]
-    return transcribe(text, simplify=simplify, verbose=verbose)
+    return _transcribe(text, simplify=simplify, verbose=verbose)
 
 def sound_spectre(
     text: str, 
