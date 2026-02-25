@@ -1,7 +1,7 @@
 import matplotlib.pylab as plt
 
 def show_plot(dct):
-    lists = sorted(dct.items())
+    lists = dct.items()
     x, y = zip(*lists)
     plt.plot(x, y)
     plt.show()

@@ -4,44 +4,49 @@ from typing import Match
 # Direct import to avoid relative import issue
 from ruphonetic.accentuation import stress
 
-# Словарь замен для йотированных гласных
-jot_dict: dict[str, str] = {
-    "ё": "й'о", "`ё": "`о",
-    "е": "й'э", "`е": "`э",
-    "я": "й'а", "`я": "й'`а",
-    "ю": "й'у", "`ю": "`у",
-    "'ё": "'й'о", "'`ё": "'`о",
-    "'е": "'й'э", "'`е": "'`э",
-    "'я": "'й'а", "'`я": "'й'`а",
-    "'ю": "'й'у", "'`ю": "'`у",
-}
+def apply_jotation(s: str) -> str:
+    # Базовая карта звуков для йотированных гласных
+    # (используется для обеих позиций: и для йотации, и для смягчения)
+    vowel_map = {
+        'е': 'э', 'ё': 'о', 'ю': 'у', 'я': 'а'
+    }
 
-def jot_function_1(m: Match) -> str:
-    """Функция замены для йотированных гласных после гласной, мягкого или твердого знака"""
-    return jot_dict[m.group(1)]
+    # 1. Йотирование (два звука: [й] + гласный)
+    # Условия: начало строки, после гласных или после Ъ/Ь
+    def jot_replacer(match):
+        prefix = match.group(1) or ""  # Символ перед буквой
+        accent = match.group(2)         # Маркер ` (если есть)
+        char = match.group(3)           # Сама буква е/ё/ю/я
+        
+        sound = vowel_map[char]
+        # Если был знак ударения `, ставим его ПОСЛЕ 'й'
+        if accent == "`":
+            return f"{prefix}й'{accent}{sound}"
+        return f"{prefix}й'{sound}"
 
-def jot_function_2(m: Match) -> str:
-    """Дополнительная функция замены для других случаев (зарезервировано)"""
-    return jot_dict[m.group(2)]
+    # Регулярное выражение с Lookbehind для определения позиции йотирования
+    pattern_jot = r"(^|(?<=[аеёиоуыэюяъ'\s]))(`?)([еёюя])"
+    s = re.sub(pattern_jot, jot_replacer, s)
 
-def jot(s: str) -> str:
-    """
-    Замена йотированных гласных в нужной позиции.
-    Например: 'е', 'ё', 'ю', 'я' – после гласных или знаков.
-    """
-    # После гласной буквы
-    s = re.sub(r"[аяиыуюеёо]([еёюя])", jot_function_1, s)
-    # После мягкого или твердого знака
-    s = re.sub(r"('[еёюя])|ъ([еёюя])", jot_function_1, s)
+    # 2. Смягчение (один звук после согласных)
+    # Если буква не йотировалась выше, значит она стоит после согласного.
+    def soft_replacer(match):
+        accent = match.group(1) or ""
+        char = match.group(2)
+        # В транскрипции смягчение ' ставится после согласного, 
+        # а ударение ` — над/после гласного.
+        return f"'{accent}{vowel_map[char]}"
+
+    # Ищем оставшиеся е, ё, ю, я
+    s = re.sub(r"(`?)([еёюя])", soft_replacer, s)
+
     return s
 
 def deafen_and_sharpen(s: str) -> str:
     """
     Оглушение и озвончение согласных по правилам русского языка.
     """
-    sharpening_map: dict[str, str] = {"к": "г", "т": "д", "п": "б", "с": "з", "ш": "ж", "ф": "в"}
     deafening_map: dict[str, str] = {"г": "к", "д": "т", "б": "п", "з": "с", "ж": "ш", "в": "ф"}
-    sharp_sounds: str = "бгвдзжмнл"
     deaf_sounds: str = "пкфтсшщхцч"
 
     # Заменяем специфические сочетания
@@ -56,7 +61,7 @@ def deafen_and_sharpen(s: str) -> str:
         s = re.sub(rf"([а-я]+){sharp_sound}([^а-яё`'])", r'\1' + deafening_map[sharp_sound] + r'\2', s)
         s = re.sub(rf"{sharp_sound}$", deafening_map[sharp_sound], s)
 
-    # Ожзвончение после "в" и "с" перед звонкими/глухими
+    # Озвончение после "в" и "с" перед звонкими/глухими
     s = re.sub(rf"в ([{deaf_sounds}])", "ф " + r'\1', s)
     s = re.sub(r"с ([бгдзжмнл])", "з " + r'\1', s)
 
@@ -148,42 +153,83 @@ def ego(s: str) -> str:
     s = re.sub(r"([^`])ого\b", r"\1ава", s)
     return s
 
+def word_ending(s: str) -> str:
+    """Замена окончаний ться/тся и ого/его последовательно"""
+    return ego(tsya(s))
+
+def vowel_reduction(s: str) -> str:
+    """
+    Редукция безударных гласных. 
+    'я' редуцируется в 'и' только если она без ударения 
+    и находится в середине слова (не в начале и не в конце).
+    """
+    # 1. Редукция "о" (о → а)
+    s = re.sub(r"(?<!`)о(?!`)", "а", s)
+    
+    # 2. Редукция "е" (е → и)
+    s = re.sub(r"(?<![ь`])е(?!`)", "и", s)
+    
+    # 3. Редукция "я" (я → и)
+    # (?<=\w)  -- проверка, что слева есть буква (не начало слова)
+    # (?<!`)   -- проверка, что нет ударения перед буквой
+    # (?=\w)   -- проверка, что справа есть буква (не конец слова)
+    s = re.sub(r"(?<=\w)(?<!`)я(?=\w)", "и", s)
+    
+    return s
+
+def handle_sch_combinations(s: str) -> str:
+    """
+    Заменяет сочетания 'сч' на звук 'щ' в соответствии с правилами русского языка.
+    Примеры: 'счастье' → 'щастье', 'считать' → 'щитать'
+    """
+    # Заменяем "сч" на "щ" в любой позиции
+    s = re.sub(r"сч", r"щ'", s)
+
+    # Убираем возможное двойное смягчение, если оно возникло
+    s = re.sub(r"щ'", r"щ", s)
+    
+    return s
+
 def transcribe(s: str, simplify: bool = False, verbose: bool = False) -> str:
     """
     Главная функция транскрибирования.
     Включает акцентуацию, замену оканчаний, мягкость, оглушение, йотирование и упрощение.
     """
 
-    s = accentuate(s)
+    s = accentuate(s) # Расставляем ударения
     if verbose:
         print("accentuate:\n", s, "\n")
 
-    s = tsya(s)
+    s = vowel_reduction(s) # Редукция безударных гласных
     if verbose:
-        print("tsya:\n", s, "\n")
+        print("vowel_reduction:\n", s, "\n")
 
-    s = ego(s)
+    s = word_ending(s) # Замена окончаний
     if verbose:
-        print("ego:\n", s, "\n")
+        print("word_ending:\n", s, "\n")
 
-    s = soften(s)
+    s = soften(s) # Смягчение согласных
     if verbose:
         print("soften:\n", s, "\n")
 
-    s = jot(s)
+    s = apply_jotation(s) # Замена йотированных гласных
     if verbose:
         print("jot:\n", s, "\n")
 
-    s = deafen_and_sharpen(s)
+    s = handle_sch_combinations(s)
+    if verbose:
+        print("sch: \n", s, "\n")
+
+    s = deafen_and_sharpen(s) # Оглушение и озвончение согласных
     if verbose:
         print("deafen&sharpen:\n", s, "\n")
 
-    s = remove_hard_sign(s)
+    s = remove_hard_sign(s) # Удаление твердого знака
     if verbose:
         print("hard sign:\n", s, "\n")
 
     if simplify:
-        s = simplify_transcription(s)
+        s = simplify_transcription(s) # Упрощение транскрипции
         if verbose:
             print("simplify:\n", s, "\n")
 
@@ -193,12 +239,3 @@ def transcribe(s: str, simplify: bool = False, verbose: bool = False) -> str:
     s = re.sub(r"[^\S\r\n]+", " ", s)
     return s
 
-if __name__ == '__main__':
-    # Пример работы транскриптора с простым текстом
-    s = (
-        "У лукоморья дуб зелёный;\n"
-        "Златая цепь на дубе том:\n"
-        "И днём и ночью кот учёный\n"
-        "Всё ходит по цепи кругом"
-    )
-    print(transcribe(s, True))

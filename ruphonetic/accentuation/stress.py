@@ -84,8 +84,14 @@ accented_vowels_map = {
     "я": "`я",
 }
 def accented_vowel_map_function(m):
-    s=accented_vowels_map[m.group(1)]
-    return s
+    char = m.group(1)
+    if char.lower() in accented_vowels_map:
+        s = accented_vowels_map[char.lower()]
+        if char.isupper():
+            s = s[0] + s[1].upper()
+        return s
+    else:
+        return char
 
 def derive_single_accentuation(interpretations):
     if len(interpretations) == 0:
@@ -168,7 +174,16 @@ def process(text, wordforms, lemmas):
         res += words[i]["whitespace"]
     return res
 
-def accentuate(text):
+def preprocess_text(text):
+    # оставляет только русский текст, одиночные пробелы и переносы строк
+    result = re.sub(r"[^а-яА-ЯёЁ\s\n]|\t", "", text)
+    result = re.sub(r" +", " ", result)
+    result = re.sub(r"\n+", "\n", result)
+    return result
+
+def accentuate(text, text_is_preprocessed=False):
+    if not text_is_preprocessed:
+        text = preprocess_text(text)
     lemmas, wordforms = load()
     #introduce_special_cases_from_dictionary(wordforms)
     res = process(text, wordforms, lemmas)
