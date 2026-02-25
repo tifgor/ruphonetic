@@ -16,11 +16,9 @@ except OSError:
     ru_nlp = spacy.load('ru_core_news_md')
 
 def load():
-    with open(file=f"{PATH}/lemmas.dat", mode='rb') as f:
-        lemmas = pickle.loads(f.read())
     with open(file=f"{PATH}/wordforms.dat", mode='rb') as f:
         wordforms = pickle.loads(f.read())
-    return lemmas, wordforms
+    return wordforms
 
 def introduce_special_cases_from_dictionary(dictionary):
     for word in dictionary:
@@ -28,48 +26,6 @@ def introduce_special_cases_from_dictionary(dictionary):
             if len(dictionary[word]) == 1:
                 ru_nlp.tokenizer.add_special_case(word, [{"ORTH": dictionary[word][0]["accentuated"]}])
                 ru_nlp.tokenizer.add_special_case(word.capitalize(), [{"ORTH": dictionary[word][0]["accentuated"].capitalize()}])
-
-def compatible(interpretation, lemma, tag, lemmas):
-    if lemma in lemmas:
-        pos_exists = False
-        possible_poses = lemmas[lemma]["pos"]
-        for i in range(len(possible_poses)):
-            if possible_poses[i] in tag:
-                pos_exists = True
-                break
-        if not (pos_exists):
-            return False
-
-    if interpretation == "canonical":
-        return True
-    if "plural" in interpretation and not ("Number=Plur" in tag):
-        return False
-    if "singular" in interpretation and not ("Number=Sing" in tag):
-        return False
-    if not ("nominative" in interpretation) and ("Case=Nom" in tag):
-        return False
-    if not ("genitive" in interpretation) and ("Case=Gen" in tag):
-        return False
-    if not ("dative" in interpretation) and ("Case=Dat" in tag):
-        return False
-    if not ("accusative" in interpretation) and ("Case=Acc" in tag):
-        adj = False
-        if "ADJ" in tag and "Animacy=Inan" in tag:
-            adj = True
-        if not adj:
-            return False
-    if not ("instrumental" in interpretation) and ("Case=Ins" in tag):
-        return False
-    if not ("prepositional" in interpretation) and not ("locative" in interpretation) and ("Case=Loc" in tag):
-        return False
-    if (("present" in interpretation) or ("future" in interpretation)) and ("Tense=Past" in tag):
-        return False
-    if (("past" in interpretation) or ("future" in interpretation)) and ("Tense=Pres" in tag):
-        return False
-    if (("past" in interpretation) or ("present" in interpretation)) and ("Tense=Fut" in tag):
-        return False
-
-    return True
 
 # Гласные для проверки односложности
 RUSSIAN_VOWELS = "аеёиоуыэюя"
@@ -127,35 +83,23 @@ def derive_single_accentuation(interpretations):
         res = add_stress_single_vowel(res)
     return res
 
-def accentuate_word(word, lemmas):
+def accentuate_word(word):
     if ("tag" in word) and ("PROPN" in word["tag"]):
         return add_stress_single_vowel(word["token"])
 
     if word["is_punctuation"] or (not "interpretations" in word):
         return add_stress_single_vowel(word["token"])
     else:
+        # Используем ударение из словаря только если оно однозначно
+        # во всех интерпретациях данной словоформы.
         res = derive_single_accentuation(word["interpretations"])
-        if not (res is None):
+        if res is not None:
             return res
-        else:
-            compatible_interpretations = []
-            for i in range(len(word["interpretations"])):
-                if compatible(word["interpretations"][i]["form"], word["interpretations"][i]["lemma"], word["tag"], lemmas):
-                    compatible_interpretations.append(word["interpretations"][i])
-            res = derive_single_accentuation(compatible_interpretations)
 
-            if not (res is None):
-                return res
-            else:
-                new_compatible_interpretations = []
-                for i in range(len(compatible_interpretations)):
-                    if compatible_interpretations[i]["lemma"] == word["lemma"]:
-                        new_compatible_interpretations.append(compatible_interpretations[i])
-                res = derive_single_accentuation(new_compatible_interpretations)
-                if not (res is None):
-                    return res
-                else:
-                    return add_stress_single_vowel(word["token"])
+        # Если словарь даёт несколько вариантов с разными ударениями
+        # или интерпретации отсутствуют, не пытаемся угадывать.
+        # Fallback: только односложные слова (add_stress_single_vowel).
+        return add_stress_single_vowel(word["token"])
 
 def tokenize(text, wordforms):
     res = []
@@ -177,11 +121,11 @@ def tokenize(text, wordforms):
         res.append(word)
     return res
 
-def process(text, wordforms, lemmas):
+def process(text, wordforms):
     res = ""
     words = tokenize(text, wordforms)
     for i in range(len(words)):
-        accentuated = accentuate_word(words[i], lemmas)
+        accentuated = accentuate_word(words[i])
         if "starts_with_a_capital_letter" in words[i] and words[i]["starts_with_a_capital_letter"]:
             accentuated = accentuated.capitalize()
         if "uppercase" in words[i] and words[i]["uppercase"]:
@@ -200,7 +144,7 @@ def preprocess_text(text):
 def accentuate(text, text_is_preprocessed=False):
     if not text_is_preprocessed:
         text = preprocess_text(text)
-    lemmas, wordforms = load()
+    wordforms = load()
     # introduce_special_cases_from_dictionary(wordforms)
-    res = process(text, wordforms, lemmas)
+    res = process(text, wordforms)
     return res
