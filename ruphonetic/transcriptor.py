@@ -147,10 +147,11 @@ def tsya(s: str) -> str:
 
 def ego(s: str) -> str:
     """
-    Замена окончаний -ого, -его на -ава, -ива в соответствии с фонетикой
+    Замена окончаний -ого на -ава/-ово, -его на -ива в соответствии с фонетикой
     """
     s = re.sub(r"([^`])его\b", r"\1ива", s)
     s = re.sub(r"([^`])ого\b", r"\1ава", s)
+    s = re.sub(r"`ого\b", r"`ова", s)
     return s
 
 def word_ending(s: str) -> str:
@@ -167,13 +168,14 @@ def vowel_reduction(s: str) -> str:
     s = re.sub(r"(?<!`)о(?!`)", "а", s)
     
     # 2. Редукция "е" (е → и)
-    s = re.sub(r"(?<![ь`])е(?!`)", "и", s)
+    s = re.sub(r"(?<![ь`])е(?!`)(?=[\w])", "и", s)
+    # (?=\w)   -- проверка, что справа есть буква (не конец слова)
     
     # 3. Редукция "я" (я → и)
     # (?<=\w)  -- проверка, что слева есть буква (не начало слова)
     # (?<!`)   -- проверка, что нет ударения перед буквой
     # (?=\w)   -- проверка, что справа есть буква (не конец слова)
-    s = re.sub(r"(?<=\w)(?<!`)я(?=\w)", "и", s)
+    s = re.sub(r"(?<=\w)(?<!`)я(?=[\w])", "и", s)
     
     return s
 
@@ -200,13 +202,14 @@ def transcribe(s: str, simplify: bool = False, verbose: bool = False) -> str:
     if verbose:
         print("accentuate:\n", s, "\n")
 
-    s = vowel_reduction(s) # Редукция безударных гласных
-    if verbose:
-        print("vowel_reduction:\n", s, "\n")
-
+    
     s = word_ending(s) # Замена окончаний
     if verbose:
         print("word_ending:\n", s, "\n")
+
+    s = vowel_reduction(s) # Редукция безударных гласных
+    if verbose:
+        print("vowel_reduction:\n", s, "\n")
 
     s = soften(s) # Смягчение согласных
     if verbose:

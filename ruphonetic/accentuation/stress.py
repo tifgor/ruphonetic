@@ -71,6 +71,19 @@ def compatible(interpretation, lemma, tag, lemmas):
 
     return True
 
+# Гласные для проверки односложности
+RUSSIAN_VOWELS = "аеёиоуыэюя"
+
+def add_stress_single_vowel(word: str) -> str:
+    """Если в слове ровно одна гласная, ставит знак ударения ` перед ней."""
+    if not word:
+        return word
+    positions = [i for i, c in enumerate(word) if c.lower() in RUSSIAN_VOWELS]
+    if len(positions) != 1:
+        return word
+    i = positions[0]
+    return word[:i] + "`" + word[i:]
+
 # а́е́и́о́у́ы́э́ю́я́
 accented_vowels_map = {
     "а": "`а",
@@ -109,14 +122,17 @@ def derive_single_accentuation(interpretations):
     match = re.match("[бвгджзклмнпрстфхцчшщ]*[аеёиоуыэюя][бвгджзклмнпрстфхцчшщь]*", res)
     if match and match.regs[0][0] == match.pos and match.regs[0][1] == match.endpos:
         res = re.sub(r"([бвгджзклмнпрстфхцчшщ]*)([аеёиоуыэюя][бвгджзклмнпрстфхцчшщь]*)", r'\1' + "`" + r'\2', res)
+    # Если после всех преобразований ударения нет, а гласная одна — проставляем автоматически
+    if "`" not in res:
+        res = add_stress_single_vowel(res)
     return res
 
 def accentuate_word(word, lemmas):
     if ("tag" in word) and ("PROPN" in word["tag"]):
-        return word["token"]
+        return add_stress_single_vowel(word["token"])
 
     if word["is_punctuation"] or (not "interpretations" in word):
-        return word["token"]
+        return add_stress_single_vowel(word["token"])
     else:
         res = derive_single_accentuation(word["interpretations"])
         if not (res is None):
@@ -139,7 +155,7 @@ def accentuate_word(word, lemmas):
                 if not (res is None):
                     return res
                 else:
-                    return word["token"]
+                    return add_stress_single_vowel(word["token"])
 
 def tokenize(text, wordforms):
     res = []
@@ -185,6 +201,6 @@ def accentuate(text, text_is_preprocessed=False):
     if not text_is_preprocessed:
         text = preprocess_text(text)
     lemmas, wordforms = load()
-    #introduce_special_cases_from_dictionary(wordforms)
+    # introduce_special_cases_from_dictionary(wordforms)
     res = process(text, wordforms, lemmas)
     return res
