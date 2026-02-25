@@ -1,0 +1,12 @@
+global-exclude *
+recursive-include ruphonetic *.py *.txt *.dat *json
+include setup.py
+include MANIFEST.in
+include README.md
+include README.txt
+include setup.cfg
+include LICENSE.txt
+include CHANGELOG.txt
+prune venv/*
+global-exclude *.py[cod]
+global-exclude __pycache__

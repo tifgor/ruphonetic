@@ -1,5 +1,11 @@
 Change Log
 ===============
+0.2.0 (25.02.2026)
+--------------------
+-Add author identification by sound spectre
+-Add 9 author sound spectres for identification (classic russian poets)
+-Rework phonetic transcriptor, fix most bugs
+-Limit transcription generation to 1 million symbols to avoid crashes
 
 0.1.5 (13.04.2023)
 --------------------
